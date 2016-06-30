@@ -2,6 +2,10 @@ from pandas import DataFrame, read_csv
 import pandas as pd
 import csv
 import numpy as np
+import statsmodels.formula.api as sm
+from scipy import stats
+import time
+from sklearn import linear_model
 
 ## add data into an original dataset
 def add_data(data, data_2):
@@ -67,21 +71,6 @@ def import_csv(file_nm,code_num_start):
                 k += 1
     return data
 
-def pivot_2(data,col):
-    uniq = np.unique(data[:,col])
-    df = pd.DataFrame(data = data, columns=['zipcode', 'code', 'year', 'value'])
-
-    df_m = df[df['code'] == 1]
-    for i in uniq[1:]:
-        df_temp = df[df['code'] == i]
-        
-        df_m = pd.merge(df_m, df_temp, left_on=['zipcode','year'], right_on=['zipcode','year'])
-
-    df_m = df_m.drop(['code_x', 'code_y'], axis=1)
-    
-    return df_m
-
-
 ## change column names
 def chg_column_names(df,num_keys):
     col_arr = df.columns
@@ -95,6 +84,57 @@ def chg_column_names(df,num_keys):
         k += 1
 
     return df
+
+def pivot_2(data,col):
+    uniq = np.unique(data[:,col])
+    df = pd.DataFrame(data = data, columns=['zipcode', 'code', 'year', 'value'])
+
+    df_m = df[df['code'] == uniq[0]]
+    for i in uniq[1:]:
+        df_temp = df[df['code'] == i]
+        df_m = pd.merge(df_m, df_temp, left_on=['zipcode','year'], right_on=['zipcode','year'])
+
+    df_m = df_m.drop(['code_x','code_y'], axis=1)
+
+    col_names = ['zipcode', 'year']
+    for i in range(0,len(uniq)):
+        col = 'x' + str(i+1)
+        col_names.append(col)
+
+    df_m.columns = col_names
+    return df_m
+
+## regression function for all factors
+def regression_all(df,y_col,num_keys):
+    col_arr = df.columns
+    num_col = len(col_arr)
+    col_all = col_arr[num_keys]
+    for i in range(num_keys,num_col-1):
+        col_all += '+' + col_arr[i+1]
+
+    formula = col_arr[y_col] + '~' + col_all
+    result = sm.ols(formula = formula, data=df).fit()
+
+    return result
+
+def regression_ex(df,y_col,num_keys,excluding_cols):
+    col_arr = df.columns
+    num_col = len(col_arr)
+    col_all = ''
+    for i in range(num_keys,num_col-1):
+        if(col_arr[i+1] not in excluding_cols):
+            if(i == num_keys):
+                col_all = col_arr[num_keys]
+
+            col_all += '+' + col_arr[i+1]
+
+    formula = col_arr[y_col] + '~' + col_all
+    result = sm.ols(formula = formula, data=df).fit()
+
+    return result
+
+
+
 
 ## import from Data1.csv to Data10.csv files
 
